@@ -1,0 +1,99 @@
+---
+- name: Validate selected GPU profile
+  ansible.builtin.assert:
+    that:
+      - edc_gpu.profile in edc_gpu.profiles
+    fail_msg: "edc_gpu.profile must name one of edc_gpu.profiles"
+
+- name: Validate secret references are names only
+  ansible.builtin.assert:
+    that:
+      - edc_queue.kafka.existing_secret_name is not search('://')
+      - edc_postgres.existing_secret_name is not search('://')
+    fail_msg: "Secret references must be Kubernetes Secret names, not URLs or inline material"
+
+- name: Validate Strimzi cluster label when enabled
+  ansible.builtin.assert:
+    that:
+      - edc_strimzi.cluster_name | length > 0
+    fail_msg: "Set edc_strimzi.cluster_name from environment-specific inventory when Strimzi is enabled"
+  when: edc_strimzi.enabled | bool
+
+- name: Validate KEDA Kafka scale inputs when enabled
+  ansible.builtin.assert:
+    that:
+      - edc_queue.kafka.bootstrap_servers | length > 0
+      - edc_queue.kafka.topic | length > 0
+      - edc_queue.kafka.consumer_group | length > 0
+    fail_msg: "Set Kafka bootstrap servers, topic, and consumer group when KEDA is enabled"
+  when: edc_keda.enabled | bool
+
+- name: Create namespace
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: "{{ edc_namespace }}"
+  when: edc_create_namespace | bool
+
+- name: Create queue configuration
+  kubernetes.core.k8s:
+    state: present
+    namespace: "{{ edc_namespace }}"
+    definition:
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: "{{ edc_queue.config_map_name }}"
+      data:
+        provider: "{{ edc_queue.provider }}"
+        queue_name: "{{ edc_worker.queue_name }}"
+        kafka_enabled: "{{ edc_queue.kafka.enabled | string }}"
+        kafka_bootstrap_servers: "{{ edc_queue.kafka.bootstrap_servers }}"
+        kafka_topic: "{{ edc_queue.kafka.topic }}"
+        kafka_consumer_group: "{{ edc_queue.kafka.consumer_group }}"
+
+- name: Create model cache claim
+  kubernetes.core.k8s:
+    state: present
+    namespace: "{{ edc_namespace }}"
+    definition:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: "{{ edc_model_cache.pvc_name }}"
+      spec:
+        accessModes: "{{ edc_model_cache.access_modes }}"
+        resources:
+          requests:
+            storage: "{{ edc_model_cache.size }}"
+        storageClassName: "{{ edc_model_cache.storage_class_name | default(omit, true) }}"
+  when: edc_model_cache.enabled | bool
+
+- name: Create optional Strimzi topic
+  kubernetes.core.k8s:
+    state: present
+    namespace: "{{ edc_strimzi.kafka_namespace }}"
+    definition:
+      apiVersion: kafka.strimzi.io/v1
+      kind: KafkaTopic
+      metadata:
+        name: "{{ edc_strimzi.topic_name }}"
+        labels:
+          strimzi.io/cluster: "{{ edc_strimzi.cluster_name }}"
+      spec:
+        partitions: "{{ edc_strimzi.partitions }}"
+        replicas: "{{ edc_strimzi.replicas }}"
+  when: edc_strimzi.enabled | bool
+
+- name: Deploy API Helm release
+  kubernetes.core.helm:
+    name: "{{ edc_release_name }}"
+    chart_ref: "{{ edc_chart_path }}"
+    release_namespace: "{{ edc_namespace }}"
+    create_namespace: false
+    wait: true
+    values: "{{ lookup('ansible.builtin.template', 'helm-values.yaml.j2') | from_yaml }}"
+  when: edc_api.enabled | bool

@@ -1,0 +1,68 @@
+{{- if .Values.cnpg.enabled }}
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ .Values.cnpg.clusterName }}
+  labels:
+    {{- include "edc-translation.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgres
+spec:
+  instances: {{ .Values.cnpg.instances }}
+  imageName: {{ .Values.cnpg.imageName | quote }}
+  bootstrap:
+    initdb:
+      database: {{ .Values.cnpg.database | quote }}
+      owner: {{ .Values.cnpg.owner | quote }}
+  storage:
+    size: {{ .Values.cnpg.storage.size | quote }}
+    {{- if .Values.cnpg.storage.storageClass }}
+    storageClass: {{ .Values.cnpg.storage.storageClass | quote }}
+    {{- end }}
+---
+{{- if .Values.cnpg.backups.enabled }}
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: {{ .Values.cnpg.clusterName }}-daily
+  annotations:
+    edc-translation.io/retention-policy: {{ .Values.cnpg.backups.retentionPolicy | quote }}
+  labels:
+    {{- include "edc-translation.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgres
+spec:
+  schedule: {{ .Values.cnpg.backups.schedule | quote }}
+  backupOwnerReference: self
+  cluster:
+    name: {{ .Values.cnpg.clusterName }}
+{{- end }}
+{{- if .Values.cnpg.pooler.enabled }}
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Pooler
+metadata:
+  name: {{ .Values.cnpg.clusterName }}-pooler-rw
+  labels:
+    {{- include "edc-translation.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgres-pooler
+spec:
+  cluster:
+    name: {{ .Values.cnpg.clusterName }}
+  instances: {{ .Values.cnpg.pooler.instances }}
+  type: rw
+  pgbouncer:
+    poolMode: {{ .Values.cnpg.pooler.poolMode | quote }}
+{{- end }}
+{{- if .Values.cnpg.backups.immediate }}
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Backup
+metadata:
+  name: {{ .Values.cnpg.backups.immediateName }}
+  labels:
+    {{- include "edc-translation.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgres
+spec:
+  cluster:
+    name: {{ .Values.cnpg.clusterName }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,6 @@
+apiVersion: v2
+name: edc-translation
+description: EDC_TRANSLATION standalone service skeleton
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

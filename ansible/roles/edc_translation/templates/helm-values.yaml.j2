@@ -1,0 +1,113 @@
+replicaCount: {{ edc_api.replicas | int }}
+image:
+  repository: {{ edc_image.repository | to_json }}
+  tag: {{ edc_image.tag | to_json }}
+  pullPolicy: {{ edc_image.pull_policy | to_json }}
+service:
+  type: {{ edc_api.service_type | to_json }}
+  port: {{ edc_api.service_port | int }}
+auth:
+  mode: {{ edc_auth.mode | default('disabled') | to_json }}
+  existingSecret: {{ edc_auth.existing_secret | default('') | to_json }}
+  jwtSecretKey: {{ edc_auth.jwt_secret_key | default('jwt-secret') | to_json }}
+  ldapBindDnKey: {{ edc_auth.ldap_bind_dn_key | default('ldap-bind-dn') | to_json }}
+  ldapBindPasswordKey: {{ edc_auth.ldap_bind_password_key | default('ldap-bind-password') | to_json }}
+networkPolicy:
+  enabled: {{ edc_network_policy.enabled | bool | lower }}
+ingress:
+  enabled: {{ edc_api.ingress.enabled | bool | lower }}
+  className: {{ edc_api.ingress.class_name | to_json }}
+  hosts:
+    - host: {{ edc_api.ingress.host | to_json }}
+      paths:
+        - path: /
+          pathType: Prefix
+{% if edc_api.ingress.tls_secret_name | length > 0 %}
+  tls:
+    - secretName: {{ edc_api.ingress.tls_secret_name | to_json }}
+      hosts:
+        - {{ edc_api.ingress.host | to_json }}
+{% else %}
+  tls: []
+{% endif %}
+keda:
+  enabled: {{ edc_keda.enabled | bool | lower }}
+  pollingInterval: {{ edc_keda.polling_interval | int }}
+  cooldownPeriod: {{ edc_keda.cooldown_period | int }}
+  minReplicaCount: {{ edc_keda.min_replicas | int }}
+  maxReplicaCount: {{ edc_keda.max_replicas | int }}
+  kafka:
+    bootstrapServers: {{ edc_queue.kafka.bootstrap_servers | to_json }}
+    topic: {{ edc_queue.kafka.topic | to_json }}
+    consumerGroup: {{ edc_queue.kafka.consumer_group | to_json }}
+    lagThreshold: {{ edc_keda.kafka.lag_threshold | to_json }}
+  postgres:
+    enabled: {{ edc_keda.postgres.enabled | bool | lower }}
+worker:
+  enabled: {{ edc_worker.enabled | bool | lower }}
+  replicaCount: {{ edc_worker.replicas | int }}
+  queueBackend: {{ edc_worker.queue_backend | default(edc_queue.provider) | to_json }}
+  runtimeAdapterVerified: {{ edc_worker.runtime_adapter_verified | default(false) | bool | lower }}
+  resources:
+{{ edc_worker.resources | to_nice_yaml(indent=2) | indent(4, true) }}
+mcp:
+  enabled: {{ edc_mcp.enabled | bool | lower }}
+  replicaCount: {{ edc_mcp.replicas | int }}
+  runtimeHttpServerVerified: {{ edc_mcp.runtime_http_server_verified | default(false) | bool | lower }}
+  service:
+    type: {{ edc_mcp.service_type | to_json }}
+    port: {{ edc_mcp.service_port | int }}
+  resources:
+{{ edc_mcp.resources | to_nice_yaml(indent=2) | indent(4, true) }}
+modelCache:
+  enabled: {{ edc_model_cache.enabled | bool | lower }}
+  existingClaim: {{ (edc_model_cache.pvc_name if edc_model_cache.enabled else '') | to_json }}
+  mountPath: {{ edc_model_cache.mount_path | to_json }}
+gpuProfile:
+  selected: {{ edc_gpu.profile | to_json }}
+  profiles:
+{% for profile_name, profile in edc_gpu.profiles.items() %}
+    {{ profile_name }}:
+      ct2Device: {{ profile.ct2_device | to_json }}
+      maxLoadedModels: {{ profile.max_loaded_models | int }}
+      nodeSelector:
+{{ profile.node_selector | to_nice_yaml(indent=2) | indent(8, true) }}
+      tolerations:
+{{ profile.tolerations | to_nice_yaml(indent=2) | indent(8, true) }}
+      resources:
+{{ profile.resources | to_nice_yaml(indent=2) | indent(8, true) }}
+{% endfor %}
+cnpg:
+  enabled: {{ edc_postgres.cnpg_enabled | bool | lower }}
+  clusterName: {{ edc_postgres.cluster_name | to_json }}
+  instances: {{ edc_postgres.instances | int }}
+  storage:
+    size: {{ edc_postgres.storage_size | to_json }}
+strimzi:
+  enabled: {{ edc_strimzi.enabled | bool | lower }}
+  clusterName: {{ edc_strimzi.cluster_name | to_json }}
+  version: {{ edc_strimzi.version | to_json }}
+  replicas: {{ edc_strimzi.replicas | int }}
+  minInSyncReplicas: {{ edc_strimzi.min_insync_replicas | int }}
+  storage:
+    size: {{ edc_strimzi.storage_size | to_json }}
+  zookeeper:
+    replicas: {{ edc_strimzi.zookeeper_replicas | int }}
+    storage:
+      size: {{ edc_strimzi.zookeeper_storage_size | to_json }}
+translation:
+  jobs:
+    localStoreDir: ""
+  ct2:
+    device: {{ edc_gpu.profiles[edc_gpu.profile].ct2_device | to_json }}
+    localCt2OpusModelDir: {{ (edc_model_cache.opus_path if edc_model_cache.enabled else '') | to_json }}
+    localCt2NllbModelDir: {{ (edc_model_cache.nllb_path if edc_model_cache.enabled else '') | to_json }}
+    localCt2MadladModelDir: {{ (edc_model_cache.madlad_path if edc_model_cache.enabled else '') | to_json }}
+  smoke:
+    autoRoute:
+      enabled: {{ edc_smoke.auto_route.enabled | bool | lower }}
+      source: {{ edc_smoke.auto_route.source | to_json }}
+      target: {{ edc_smoke.auto_route.target | to_json }}
+      allowNcLicensed: {{ edc_smoke.auto_route.allow_nc_licensed | bool | lower }}
+resources:
+{{ edc_api.resources | to_nice_yaml(indent=2) | indent(2, true) }}

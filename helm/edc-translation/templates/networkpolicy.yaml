@@ -1,0 +1,106 @@
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "edc-translation.fullname" . }}
+  labels:
+    {{- include "edc-translation.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "edc-translation.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        {{- with .Values.networkPolicy.ingressNamespaceSelector }}
+        - namespaceSelector:
+            matchLabels:
+              {{- toYaml . | nindent 14 }}
+        {{- end }}
+        - podSelector:
+            matchLabels:
+              {{- include "edc-translation.componentSelectorLabels" (dict "root" . "component" "worker") | nindent 14 }}
+        {{- if .Values.mcp.enabled }}
+        - podSelector:
+            matchLabels:
+              {{- include "edc-translation.componentSelectorLabels" (dict "root" . "component" "mcp") | nindent 14 }}
+        {{- end }}
+      ports:
+        - protocol: TCP
+          port: http
+    {{- if .Values.mcp.enabled }}
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "edc-translation.componentSelectorLabels" (dict "root" . "component" "api") | nindent 14 }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.mcp.service.port }}
+    {{- end }}
+    {{- with .Values.networkPolicy.monitoringNamespaceSelector }}
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              {{- toYaml . | nindent 14 }}
+      ports:
+        - protocol: TCP
+          port: http
+        {{- if $.Values.mcp.enabled }}
+        - protocol: TCP
+          port: {{ $.Values.mcp.service.port }}
+        {{- end }}
+    {{- end }}
+  egress:
+    {{- if .Values.networkPolicy.egressAllowAll }}
+    - {}
+    {{- else }}
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    {{- if .Values.cnpg.enabled }}
+    - to:
+        - podSelector:
+            matchLabels:
+              {{- toYaml (default (dict "cnpg.io/cluster" .Values.cnpg.clusterName) .Values.networkPolicy.postgresPodSelectorLabels) | nindent 14 }}
+      ports:
+        - protocol: TCP
+          port: 5432
+    {{- end }}
+    {{- if .Values.strimzi.enabled }}
+    - to:
+        - podSelector:
+            matchLabels:
+              {{- toYaml (default (dict "strimzi.io/cluster" .Values.strimzi.clusterName) .Values.networkPolicy.kafkaPodSelectorLabels) | nindent 14 }}
+      ports:
+        - protocol: TCP
+          port: 9092
+    {{- end }}
+    - to:
+        - podSelector:
+            matchLabels:
+              {{- include "edc-translation.componentSelectorLabels" (dict "root" . "component" "api") | nindent 14 }}
+        {{- if .Values.mcp.enabled }}
+        - podSelector:
+            matchLabels:
+              {{- include "edc-translation.componentSelectorLabels" (dict "root" . "component" "mcp") | nindent 14 }}
+        {{- end }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.service.port }}
+        {{- if .Values.mcp.enabled }}
+        - protocol: TCP
+          port: {{ .Values.mcp.service.port }}
+        {{- end }}
+    {{- with .Values.networkPolicy.extraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- end }}
+{{- end }}

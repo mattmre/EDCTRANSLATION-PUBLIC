@@ -1,0 +1,69 @@
+# Staging-like stack for local validation of durable Postgres-backed services.
+# It intentionally enables auth enforcement; use docker-compose.local.yml for
+# unauthenticated developer smoke tests.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: edc
+      POSTGRES_PASSWORD: ${EDC_TRANSLATION_POSTGRES_PASSWORD:?Set EDC_TRANSLATION_POSTGRES_PASSWORD}
+      POSTGRES_DB: edc_translation
+    ports:
+      - "127.0.0.1:15432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U edc"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - EDC_TRANSLATION_JOB_BACKEND=postgres
+      - EDC_TRANSLATION_QUEUE_BACKEND=postgres
+      - EDC_TRANSLATION_AUTH_STORE_BACKEND=postgres
+      - EDC_TRANSLATION_MODEL_REGISTRY_BACKEND=postgres
+      - EDC_TRANSLATION_POSTGRES_DSN=postgresql://edc:${EDC_TRANSLATION_POSTGRES_PASSWORD:?Set EDC_TRANSLATION_POSTGRES_PASSWORD}@postgres:5432/edc_translation
+      - EDC_AUTH_MODE=jwt_ldap
+      - EDC_DEPLOYMENT_ENV=approved_staging
+      - EDC_JWT_SECRET=${EDC_JWT_SECRET:?Set EDC_JWT_SECRET}
+      - EDC_STATIC_API_TOKEN_HASH=${EDC_STATIC_API_TOKEN_HASH:-}
+      - EDC_STATIC_API_TOKEN_TENANT=${EDC_STATIC_API_TOKEN_TENANT:-standalone}
+      - EDC_STATIC_API_TOKEN_SCOPES=${EDC_STATIC_API_TOKEN_SCOPES:-translation:read,translation:submit,models:read,evidence:read,reviews:write,tenant:policy:read,tenant:policy:write,audit:read}
+      - EDC_STATIC_API_TOKEN_SUBJECT=${EDC_STATIC_API_TOKEN_SUBJECT:-local-staging-token}
+      - EDC_TRANSLATION_LOCAL_LLM_BASE_URL=${EDC_TRANSLATION_LOCAL_LLM_BASE_URL:-http://mock-llm.invalid/v1}
+      - EDC_TRANSLATION_LOCAL_LLM_MODEL_IDS=${EDC_TRANSLATION_LOCAL_LLM_MODEL_IDS:-}
+    ports:
+      - "127.0.0.1:18080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["uvicorn", "edc_translation.api:app", "--host", "0.0.0.0", "--port", "8080"]
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - EDC_TRANSLATION_JOB_BACKEND=postgres
+      - EDC_TRANSLATION_QUEUE_BACKEND=postgres
+      - EDC_TRANSLATION_AUTH_STORE_BACKEND=postgres
+      - EDC_TRANSLATION_MODEL_REGISTRY_BACKEND=postgres
+      - EDC_TRANSLATION_POSTGRES_DSN=postgresql://edc:${EDC_TRANSLATION_POSTGRES_PASSWORD:?Set EDC_TRANSLATION_POSTGRES_PASSWORD}@postgres:5432/edc_translation
+      - EDC_AUTH_MODE=jwt_ldap
+      - EDC_DEPLOYMENT_ENV=approved_staging
+      - EDC_JWT_SECRET=${EDC_JWT_SECRET:?Set EDC_JWT_SECRET}
+      - EDC_TRANSLATION_LOCAL_LLM_BASE_URL=${EDC_TRANSLATION_LOCAL_LLM_BASE_URL:-http://mock-llm.invalid/v1}
+      - EDC_TRANSLATION_LOCAL_LLM_MODEL_IDS=${EDC_TRANSLATION_LOCAL_LLM_MODEL_IDS:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["edc-translation-worker", "--queue-backend", "postgres"]
+
+volumes:
+  postgres_data:

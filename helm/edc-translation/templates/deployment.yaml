@@ -1,0 +1,161 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "edc-translation.fullname" . }}
+  labels:
+    {{- include "edc-translation.componentLabels" (dict "root" . "component" "api") | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "edc-translation.componentSelectorLabels" (dict "root" . "component" "api") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "edc-translation.componentSelectorLabels" (dict "root" . "component" "api") | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "edc-translation.serviceAccountName" . }}
+      automountServiceAccountToken: {{ .Values.serviceAccount.automountServiceAccountToken }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- include "edc-translation.hostAliases" . | nindent 6 }}
+      {{- if .Values.translation.smoke.autoRoute.enabled }}
+      initContainers:
+        - name: auto-route-smoke
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          command:
+            - "python"
+            - "-m"
+            - "edc_translation.cli"
+            - "smoke-auto-route"
+            - "--source"
+            - {{ .Values.translation.smoke.autoRoute.source | quote }}
+            - "--target"
+            - {{ .Values.translation.smoke.autoRoute.target | quote }}
+            {{- if .Values.translation.smoke.autoRoute.allowNcLicensed }}
+            - "--allow-nc-licensed"
+            {{- end }}
+          env:
+            - name: EDC_AUTH_MODE
+              value: {{ .Values.auth.mode | quote }}
+            - name: EDC_DEPLOYMENT_ENV
+              value: {{ .Values.platform.environment | quote }}
+            {{- if .Values.auth.existingSecret }}
+            - name: EDC_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.auth.existingSecret | quote }}
+                  key: {{ .Values.auth.jwtSecretKey | quote }}
+            - name: EDC_LDAP_BIND_DN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.auth.existingSecret | quote }}
+                  key: {{ .Values.auth.ldapBindDnKey | quote }}
+            - name: EDC_LDAP_BIND_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.auth.existingSecret | quote }}
+                  key: {{ .Values.auth.ldapBindPasswordKey | quote }}
+            {{- end }}
+            - name: EDC_TRANSLATION_CT2_DEVICE
+              value: {{ .Values.translation.ct2.device | quote }}
+            {{- if .Values.translation.ct2.localCt2OpusModelDir }}
+            - name: EDC_TRANSLATION_LOCAL_CT2_OPUS_MODEL_DIR
+              value: {{ .Values.translation.ct2.localCt2OpusModelDir | quote }}
+            {{- end }}
+            {{- if .Values.translation.ct2.localCt2NllbModelDir }}
+            - name: EDC_TRANSLATION_LOCAL_CT2_NLLB_MODEL_DIR
+              value: {{ .Values.translation.ct2.localCt2NllbModelDir | quote }}
+            {{- end }}
+            {{- if .Values.translation.ct2.localCt2MadladModelDir }}
+            - name: EDC_TRANSLATION_LOCAL_CT2_MADLAD_MODEL_DIR
+              value: {{ .Values.translation.ct2.localCt2MadladModelDir | quote }}
+            {{- end }}
+            {{- include "edc-translation.localLlmEnv" . | nindent 12 }}
+      {{- end }}
+      containers:
+        - name: edc-translation
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: EDC_AUTH_MODE
+              value: {{ .Values.auth.mode | quote }}
+            - name: EDC_DEPLOYMENT_ENV
+              value: {{ .Values.platform.environment | quote }}
+            {{- if .Values.keda.postgres.enabled }}
+            - name: EDC_TRANSLATION_JOB_BACKEND
+              value: "postgres"
+            - name: EDC_TRANSLATION_AUTH_STORE_BACKEND
+              value: "postgres"
+            - name: EDC_TRANSLATION_MODEL_REGISTRY_BACKEND
+              value: "postgres"
+            - name: EDC_TRANSLATION_POSTGRES_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.keda.postgres.connectionFromSecret | quote }}
+                  key: {{ .Values.keda.postgres.connectionSecretKey | quote }}
+            {{- end }}
+            {{- if .Values.auth.existingSecret }}
+            - name: EDC_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.auth.existingSecret | quote }}
+                  key: {{ .Values.auth.jwtSecretKey | quote }}
+            - name: EDC_LDAP_BIND_DN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.auth.existingSecret | quote }}
+                  key: {{ .Values.auth.ldapBindDnKey | quote }}
+            - name: EDC_LDAP_BIND_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.auth.existingSecret | quote }}
+                  key: {{ .Values.auth.ldapBindPasswordKey | quote }}
+            {{- end }}
+            - name: EDC_TRANSLATION_CT2_DEVICE
+              value: {{ .Values.translation.ct2.device | quote }}
+            {{- if .Values.translation.ct2.localCt2OpusModelDir }}
+            - name: EDC_TRANSLATION_LOCAL_CT2_OPUS_MODEL_DIR
+              value: {{ .Values.translation.ct2.localCt2OpusModelDir | quote }}
+            {{- end }}
+            {{- if .Values.translation.ct2.localCt2NllbModelDir }}
+            - name: EDC_TRANSLATION_LOCAL_CT2_NLLB_MODEL_DIR
+              value: {{ .Values.translation.ct2.localCt2NllbModelDir | quote }}
+            {{- end }}
+            {{- if .Values.translation.ct2.localCt2MadladModelDir }}
+            - name: EDC_TRANSLATION_LOCAL_CT2_MADLAD_MODEL_DIR
+              value: {{ .Values.translation.ct2.localCt2MadladModelDir | quote }}
+            {{- end }}
+            {{- if .Values.translation.jobs.localStoreDir }}
+            - name: EDC_TRANSLATION_JOB_STORE_DIR
+              value: {{ .Values.translation.jobs.localStoreDir | quote }}
+            {{- end }}
+            {{- include "edc-translation.localLlmEnv" . | nindent 12 }}
+          {{- if .Values.translation.jobs.localStoreDir }}
+          volumeMounts:
+            - name: translation-job-store
+              mountPath: {{ .Values.translation.jobs.localStoreDir | quote }}
+          {{- end }}
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- if .Values.translation.jobs.localStoreDir }}
+      volumes:
+        - name: translation-job-store
+          emptyDir: {}
+      {{- end }}

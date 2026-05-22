@@ -1,0 +1,36 @@
+"""Deterministic CI engine for contract tests."""
+
+from __future__ import annotations
+
+from edc_translation.engines import register_engine
+from edc_translation.engines.base import EngineTranslation, TranslationEngine
+from edc_translation.models import EngineCapability
+
+
+@register_engine
+class DeterministicCIEngine(TranslationEngine):
+    capability = EngineCapability(
+        id="deterministic_ci",
+        is_local=True,
+        is_cloud=False,
+        supports_pairs="any",
+        quality_class="draft",
+        latency_class="realtime",
+        license="Apache-2.0",
+        provider_retention_class="local_only",
+        deployment_envs=["local", "air_gapped", "kubernetes"],
+    )
+    provider_family = "passthrough"
+
+    def translate_text(
+        self,
+        text: str,
+        *,
+        source_language: str,
+        target_language: str,
+    ) -> EngineTranslation:
+        return EngineTranslation(
+            translated_text=f"{text} [{source_language}->{target_language}]",
+            confidence=1.0,
+            quality_score=1.0,
+        )

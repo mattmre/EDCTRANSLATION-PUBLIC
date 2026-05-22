@@ -1,0 +1,29 @@
+{{- if .Values.keda.enabled }}
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: {{ include "edc-translation.fullname" . }}-worker
+  labels:
+    {{- include "edc-translation.componentLabels" (dict "root" . "component" "worker") | nindent 4 }}
+spec:
+  scaleTargetRef:
+    name: {{ include "edc-translation.fullname" . }}-worker
+  pollingInterval: {{ .Values.keda.pollingInterval }}
+  cooldownPeriod: {{ .Values.keda.cooldownPeriod }}
+  minReplicaCount: {{ .Values.keda.minReplicaCount }}
+  maxReplicaCount: {{ .Values.keda.maxReplicaCount }}
+  triggers:
+    - type: kafka
+      metadata:
+        bootstrapServers: {{ required "keda.kafka.bootstrapServers is required when keda.enabled=true" .Values.keda.kafka.bootstrapServers | quote }}
+        topic: {{ .Values.keda.kafka.topic | quote }}
+        consumerGroup: {{ .Values.keda.kafka.consumerGroup | quote }}
+        lagThreshold: {{ .Values.keda.kafka.lagThreshold | quote }}
+    {{- if .Values.keda.postgres.enabled }}
+    - type: postgresql
+      metadata:
+        connectionFromEnv: EDC_TRANSLATION_POSTGRES_DSN
+        query: {{ .Values.keda.postgres.query | quote }}
+        targetQueryValue: {{ .Values.keda.postgres.targetQueryValue | quote }}
+    {{- end }}
+{{- end }}

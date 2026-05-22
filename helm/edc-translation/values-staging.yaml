@@ -1,0 +1,89 @@
+platform:
+  production: false
+  environment: approved_staging
+
+replicaCount: 1
+
+auth:
+  mode: jwt_ldap
+  existingSecret: edc-translation-auth
+
+worker:
+  enabled: true
+  runtimeAdapterVerified: false
+  replicaCount: 1
+  queueBackend: kafka
+
+mcp:
+  enabled: true
+  runtimeHttpServerVerified: false
+  replicaCount: 1
+
+modelCache:
+  enabled: false
+  existingClaim: ""
+
+gpuProfile:
+  selected: local-cpu
+
+translation:
+  ct2:
+    device: cpu
+
+networkPolicy:
+  enabled: true
+  monitoringNamespaceSelector:
+    kubernetes.io/metadata.name: monitoring
+  postgresPodSelectorLabels:
+    cnpg.io/cluster: edc-translation-postgres
+  kafkaPodSelectorLabels:
+    strimzi.io/cluster: edc-translation-kafka
+
+ingress:
+  enabled: false
+
+keda:
+  enabled: true
+  minReplicaCount: 1
+  maxReplicaCount: 2
+  kafka:
+    bootstrapServers: edc-translation-kafka-kafka-bootstrap.edc-translation-staging.svc:9092
+    topic: translation-jobs
+    consumerGroup: edc-translation-workers
+    lagThreshold: "5"
+  postgres:
+    enabled: false
+
+cnpg:
+  enabled: true
+  clusterName: edc-translation-postgres
+  instances: 1
+  storage:
+    size: 20Gi
+  backups:
+    enabled: false
+
+strimzi:
+  enabled: true
+  clusterName: edc-translation-kafka
+  replicas: 1
+  minInSyncReplicas: 1
+  storage:
+    size: 20Gi
+  zookeeper:
+    replicas: 1
+    storage:
+      size: 10Gi
+  topics:
+    translation-jobs:
+      partitions: 3
+      replicas: 1
+    translation-segments:
+      partitions: 6
+      replicas: 1
+    translation-results:
+      partitions: 6
+      replicas: 1
+    translation-dead-letter:
+      partitions: 3
+      replicas: 1

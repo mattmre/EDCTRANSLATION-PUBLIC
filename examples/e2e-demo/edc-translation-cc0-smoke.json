@@ -1,0 +1,35 @@
+{
+  "dataset": {
+    "name": "EDC_TRANSLATION CC0 smoke phrases",
+    "license": "CC0-1.0",
+    "source": "Project-authored deterministic E2E smoke fixture",
+    "free_external_options": [
+      {
+        "name": "FLORES-200",
+        "license": "CC-BY-SA-4.0",
+        "url": "https://huggingface.co/datasets/facebook/flores"
+      },
+      {
+        "name": "Tatoeba text downloads",
+        "license": "CC-BY 2.0 FR",
+        "url": "https://tatoeba.org/en/downloads"
+      }
+    ]
+  },
+  "pairs": [
+    {
+      "id": "cc0-en-fr-001",
+      "source_language": "en",
+      "target_language": "fr",
+      "source_text": "The translation job is ready for review.",
+      "reference_text": "Le travail de traduction est prêt pour la révision."
+    },
+    {
+      "id": "cc0-en-es-001",
+      "source_language": "en",
+      "target_language": "es",
+      "source_text": "The evidence bundle contains the job identifier.",
+      "reference_text": "El paquete de evidencia contiene el identificador del trabajo."
+    }
+  ]
+}

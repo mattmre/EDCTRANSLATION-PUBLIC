@@ -1,0 +1,85 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "edc-translation"
+version = "0.1.0"
+description = "Contract-first translation service for DocumentBundle v1 inputs and TranslationBundle v1 outputs."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [{ name = "MattMRE" }]
+keywords = [
+  "translation",
+  "ediscovery",
+  "document-processing",
+  "fastapi",
+  "kubernetes",
+  "mcp",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Framework :: FastAPI",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Topic :: Text Processing :: Linguistic",
+]
+dependencies = [
+  "fastapi>=0.100",
+  "jsonschema>=4.0",
+  "pydantic>=2.0",
+  "uvicorn>=0.30",
+]
+
+[project.optional-dependencies]
+ct2 = [
+  "ctranslate2>=4.0",
+  "sentencepiece>=0.2",
+]
+
+postgres = [
+  "psycopg[binary]>=3.2",
+]
+
+kafka = [
+  "aiokafka>=0.10",
+]
+
+dev = [
+  "build>=1.2",
+  "httpx>=0.27",
+  "pytest>=8.0",
+  "ruff>=0.7",
+]
+
+all = [
+  "ctranslate2>=4.0",
+  "sentencepiece>=0.2",
+  "psycopg[binary]>=3.2",
+  "aiokafka>=0.10",
+]
+
+[project.urls]
+Homepage = "https://github.com/mattmre/EDCTRANSLATION-PUBLIC"
+Repository = "https://github.com/mattmre/EDCTRANSLATION-PUBLIC"
+Issues = "https://github.com/mattmre/EDCTRANSLATION-PUBLIC/issues"
+Documentation = "https://mattmre.github.io/EDCTRANSLATION-PUBLIC/"
+
+[project.scripts]
+edc-translation = "edc_translation.cli:main"
+edc-translation-worker = "edc_translation.worker:main"
+edc-translation-mcp = "edc_translation.mcp:main"
+edc-translation-mcp-http = "edc_translation.mcp_http:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-v --tb=short"
+
+[tool.setuptools.packages.find]
+include = ["edc_translation*"]
+
+[tool.setuptools.package-data]
+edc_translation = ["static/*.html", "schemas/*.json"]

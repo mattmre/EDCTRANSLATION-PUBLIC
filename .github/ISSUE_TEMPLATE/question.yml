@@ -1,0 +1,14 @@
+name: Question
+description: Ask for setup help or design clarification.
+title: "[Question]: "
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: "Questions usually work best in GitHub Discussions: https://github.com/mattmre/EDCTRANSLATION-PUBLIC/discussions"
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+    validations:
+      required: true

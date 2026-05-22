@@ -1,0 +1,6 @@
+---
+- name: Deploy EDC_TRANSLATION Kubernetes surfaces
+  hosts: edc_control
+  gather_facts: false
+  roles:
+    - role: edc_translation

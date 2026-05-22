@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.hypothesis/
+.venv/
+.env
+.env.*
+!.env.example
+dist/
+build/
+*.egg-info/
+out/
+uvicorn-*.log
+.local-stack/
+.overnight/
+.coverage
+htmlcov/

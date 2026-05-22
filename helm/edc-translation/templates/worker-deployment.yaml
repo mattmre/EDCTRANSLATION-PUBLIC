@@ -1,0 +1,90 @@
+{{- if .Values.worker.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "edc-translation.fullname" . }}-worker
+  labels:
+    {{- include "edc-translation.componentLabels" (dict "root" . "component" "worker") | nindent 4 }}
+spec:
+  replicas: {{ .Values.worker.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "edc-translation.componentSelectorLabels" (dict "root" . "component" "worker") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "edc-translation.componentSelectorLabels" (dict "root" . "component" "worker") | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "edc-translation.serviceAccountName" . }}
+      automountServiceAccountToken: {{ .Values.serviceAccount.automountServiceAccountToken }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- with (index .Values.gpuProfile.profiles .Values.gpuProfile.selected).nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with (index .Values.gpuProfile.profiles .Values.gpuProfile.selected).tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.hostAccess.workerHostNetwork }}
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      {{- end }}
+      {{- include "edc-translation.hostAliases" . | nindent 6 }}
+      containers:
+        - name: worker
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            {{- toYaml .Values.worker.command | nindent 12 }}
+          args:
+            - "--queue-backend"
+            - {{ .Values.worker.queueBackend | quote }}
+            - "--worker-id"
+            - "$(EDC_TRANSLATION_WORKER_ID)"
+            - "--model-profile"
+            - {{ .Values.gpuProfile.selected | quote }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          env:
+            - name: EDC_AUTH_MODE
+              value: {{ .Values.auth.mode | quote }}
+            - name: EDC_DEPLOYMENT_ENV
+              value: {{ .Values.platform.environment | quote }}
+            - name: EDC_TRANSLATION_WORKER_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: EDC_TRANSLATION_QUEUE_BACKEND
+              value: {{ .Values.worker.queueBackend | quote }}
+            {{- if or (eq .Values.worker.queueBackend "postgres") .Values.keda.postgres.enabled }}
+            - name: EDC_TRANSLATION_JOB_BACKEND
+              value: "postgres"
+            {{- end }}
+            - name: EDC_TRANSLATION_CT2_DEVICE
+              value: {{ (index .Values.gpuProfile.profiles .Values.gpuProfile.selected).ct2Device | quote }}
+            - name: EDC_TRANSLATION_MAX_LOADED_MODELS
+              value: {{ (index .Values.gpuProfile.profiles .Values.gpuProfile.selected).maxLoadedModels | quote }}
+            {{- if .Values.keda.postgres.enabled }}
+            - name: EDC_TRANSLATION_POSTGRES_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.keda.postgres.connectionFromSecret | quote }}
+                  key: {{ .Values.keda.postgres.connectionSecretKey | quote }}
+            {{- end }}
+            {{- include "edc-translation.localLlmEnv" . | nindent 12 }}
+          {{- if .Values.modelCache.enabled }}
+          volumeMounts:
+            - name: model-cache
+              mountPath: {{ .Values.modelCache.mountPath | quote }}
+          {{- end }}
+          resources:
+            {{- toYaml (default (index .Values.gpuProfile.profiles .Values.gpuProfile.selected).resources .Values.worker.resources) | nindent 12 }}
+      {{- if .Values.modelCache.enabled }}
+      volumes:
+        - name: model-cache
+          persistentVolumeClaim:
+            claimName: {{ required "modelCache.existingClaim is required when modelCache.enabled=true" .Values.modelCache.existingClaim | quote }}
+      {{- end }}
+{{- end }}

@@ -1,0 +1,269 @@
+replicaCount: 1
+
+nameOverride: ""
+fullnameOverride: ""
+
+platform:
+  production: false
+  environment: local
+
+auth:
+  mode: disabled
+  existingSecret: ""
+  jwtSecretKey: jwt-secret
+  ldapBindDnKey: ldap-bind-dn
+  ldapBindPasswordKey: ldap-bind-password
+
+secretManager:
+  enabled: false
+  provider: external-secrets
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: edc-translation-secrets
+  targetSecretName: ""
+  creationPolicy: Owner
+  remoteRefs:
+    jwtSecret:
+      key: edc-translation/production/auth
+      property: jwt-secret
+    ldapBindDn:
+      key: edc-translation/production/auth
+      property: ldap-bind-dn
+    ldapBindPassword:
+      key: edc-translation/production/auth
+      property: ldap-bind-password
+
+image:
+  repository: edc-translation
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8080
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+  automountServiceAccountToken: false
+
+rbac:
+  create: true
+
+worker:
+  enabled: false
+  replicaCount: 0
+  runtimeAdapterVerified: false
+  command:
+    - edc-translation-worker
+  queueBackend: local
+  resources: {}
+
+mcp:
+  enabled: false
+  replicaCount: 0
+  runtimeHttpServerVerified: false
+  command:
+    - edc-translation-mcp-http
+  service:
+    type: ClusterIP
+    port: 8081
+  resources: {}
+
+modelCache:
+  enabled: false
+  existingClaim: ""
+  mountPath: /models
+
+gpuProfile:
+  selected: local-cpu
+  profiles:
+    local-cpu:
+      ct2Device: cpu
+      maxLoadedModels: 0
+      nodeSelector: {}
+      tolerations: []
+      resources: {}
+    gpu-1x16:
+      ct2Device: cuda
+      maxLoadedModels: 1
+      nodeSelector: {}
+      tolerations: []
+      resources:
+        limits:
+          nvidia.com/gpu: 1
+    gpu-1x24:
+      ct2Device: cuda
+      maxLoadedModels: 3
+      nodeSelector: {}
+      tolerations: []
+      resources:
+        limits:
+          nvidia.com/gpu: 1
+
+translation:
+  jobs:
+    localStoreDir: ""
+  ct2:
+    device: cpu
+    localCt2OpusModelDir: ""
+    localCt2NllbModelDir: ""
+    localCt2MadladModelDir: ""
+  smoke:
+    autoRoute:
+      enabled: false
+      source: en
+      target: fr
+      allowNcLicensed: false
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+networkPolicy:
+  enabled: false
+  egressAllowAll: false
+  ingressNamespaceSelector: {}
+  monitoringNamespaceSelector: {}
+  postgresPodSelectorLabels: {}
+  kafkaPodSelectorLabels: {}
+  extraEgress: []
+
+ingress:
+  enabled: false
+  className: nginx
+  annotations: {}
+  hosts:
+    - host: edc-translation.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+keda:
+  enabled: false
+  pollingInterval: 30
+  cooldownPeriod: 300
+  minReplicaCount: 1
+  maxReplicaCount: 4
+  kafka:
+    bootstrapServers: ""
+    topic: translation-jobs
+    consumerGroup: edc-translation-workers
+    lagThreshold: "10"
+  postgres:
+    enabled: false
+    connectionFromSecret: edc-translation-postgres-app
+    connectionSecretKey: dsn
+    query: "SELECT count(*) FROM translation_work_queue WHERE status = 'queued'"
+    targetQueryValue: "5"
+
+cnpg:
+  enabled: false
+  clusterName: edc-translation-postgres
+  instances: 3
+  imageName: ghcr.io/cloudnative-pg/postgresql:16
+  database: edc_translation
+  owner: edc_translation
+  storage:
+    size: 50Gi
+    storageClass: ""
+  pooler:
+    enabled: false
+    instances: 1
+    poolMode: transaction
+  backups:
+    enabled: true
+    immediate: false
+    immediateName: edc-translation-postgres-manual
+    schedule: "0 0 3 * * *"
+    retentionPolicy: "30d"
+
+strimzi:
+  enabled: false
+  clusterName: edc-translation-kafka
+  version: 4.2.0
+  replicas: 3
+  minInSyncReplicas: 2
+  storage:
+    size: 100Gi
+    storageClass: ""
+  zookeeper:
+    replicas: 3
+    storage:
+      size: 20Gi
+      storageClass: ""
+  topics:
+    translation-jobs:
+      partitions: 3
+      replicas: 3
+    translation-segments:
+      partitions: 12
+      replicas: 3
+    translation-results:
+      partitions: 12
+      replicas: 3
+    translation-dead-letter:
+      partitions: 3
+      replicas: 3
+
+# -----------------------------------------------------------------------------
+# Local development: external model server running on the *host* (not in-cluster)
+# at port 8081 (e.g. llama.cpp server with --port 8081, ollama, LM Studio, vLLM
+# OpenAI compat endpoint). This powers the "local_openai_compat" provider used by
+# workers (and API/MCP when jobs specify that provider_id).
+#
+# The worker (primary) must be able to HTTP GET http://host.docker.internal:8081/v1/models
+# and POST /v1/chat/completions from inside its pod.
+# -----------------------------------------------------------------------------
+localLlm:
+  enabled: false
+  baseUrl: "http://host.docker.internal:8081"
+  # Comma-separated model IDs (optional; empty => auto-discover via /v1/models).
+  # Example: "example-local-model,example-fallback-model"
+  modelIds: ""
+
+# Host-to-pod name resolution and network tweaks for reaching host-bound services
+# (the 8081 model) from inside pods when host.docker.internal does not resolve
+# out-of-the-box inside the pod (true for many kind clusters; often automatic in
+# Docker Desktop's built-in K8s).
+# Combine with networkPolicy.egressAllowAll or extraEgress when networkPolicy.enabled.
+hostAccess:
+  enabled: false
+  # Literal IPv4 that pods should use for "host.docker.internal".
+  # Determine for your setup:
+  #   docker network inspect bridge --format '{{ (index .IPAM.Config 0).Gateway }}'
+  #   or from a debug pod: ip route show default
+  # Common values:
+  #   - "172.17.0.1" (docker bridge gateway, works from docker containers)
+  #   - For kind on Docker Desktop/WSL: often the same or 192.168.65.x ; test with
+  #     a temporary busybox pod + wget after setting.
+  # Leave empty (with enabled=false) to rely on native resolution.
+  hostIP: ""
+  hostnames:
+    - "host.docker.internal"
+  # Scope hostNetwork to worker only (avoids API port conflict on host 8080 etc).
+  # When true: worker pod shares host net ns => can reach 127.0.0.1:8081 directly.
+  # Then you may also want to set localLlm.baseUrl: "http://127.0.0.1:8081" .
+  # dnsPolicy must be ClusterFirstWithHostNet when hostNetwork=true.
+  # Use ONLY for local single-replica testing.
+  workerHostNetwork: false

@@ -1,0 +1,677 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>EDC_TRANSLATION Admin</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: Arial, sans-serif;
+        color: #172033;
+        background: #f5f7fa;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+      }
+      header {
+        background: #ffffff;
+        border-bottom: 1px solid #d8dde6;
+        padding: 18px 28px;
+      }
+      main {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 24px;
+      }
+      h1 {
+        font-size: 24px;
+        margin: 0;
+      }
+      h2 {
+        font-size: 17px;
+        margin: 0 0 12px;
+      }
+      label {
+        display: grid;
+        gap: 6px;
+        color: #465166;
+        font-size: 13px;
+        font-weight: 700;
+      }
+      label[title] {
+        position: relative;
+        padding-right: 22px;
+      }
+      label[title]::after {
+        align-items: center;
+        background: #eef2f7;
+        border: 1px solid #b8c2d1;
+        border-radius: 999px;
+        color: #334155;
+        content: "?";
+        display: inline-flex;
+        font-size: 11px;
+        font-weight: 700;
+        height: 16px;
+        justify-content: center;
+        line-height: 1;
+        position: absolute;
+        right: 0;
+        top: 0;
+        width: 16px;
+      }
+      input,
+      select,
+      textarea {
+        width: 100%;
+        border: 1px solid #c8cfda;
+        border-radius: 6px;
+        color: #172033;
+        font: inherit;
+        min-height: 38px;
+        padding: 8px 10px;
+      }
+      textarea {
+        min-height: 96px;
+        resize: vertical;
+      }
+      button {
+        background: #2454a6;
+        border: 0;
+        border-radius: 6px;
+        color: #ffffff;
+        cursor: pointer;
+        font-weight: 700;
+        min-height: 38px;
+        padding: 8px 12px;
+      }
+      button.secondary {
+        background: #536179;
+      }
+      .grid {
+        display: grid;
+        gap: 16px;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      }
+      .panel {
+        background: #ffffff;
+        border: 1px solid #d8dde6;
+        border-radius: 6px;
+        padding: 16px;
+      }
+      .wide {
+        grid-column: 1 / -1;
+      }
+      .stack {
+        display: grid;
+        gap: 12px;
+      }
+      .row {
+        display: grid;
+        gap: 10px;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      }
+      pre {
+        background: #111827;
+        border-radius: 6px;
+        color: #e5edf7;
+        margin: 16px 0 0;
+        max-height: 420px;
+        overflow: auto;
+        padding: 14px;
+        white-space: pre-wrap;
+      }
+      .feed {
+        min-height: 180px;
+      }
+      .file-list {
+        border: 1px solid #d8dde6;
+        border-radius: 6px;
+        display: grid;
+        gap: 8px;
+        margin: 0;
+        max-height: 220px;
+        overflow: auto;
+        padding: 10px 12px;
+      }
+      .file-list li {
+        overflow-wrap: anywhere;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>EDC_TRANSLATION</h1>
+    </header>
+    <main class="stack">
+      <section class="grid" aria-label="Translation workflows">
+        <form class="panel stack wide" id="batchFiles">
+          <h2>Batch Text Files</h2>
+          <div class="row">
+            <label title="Folder or single text file to process. Folder jobs scan matching extensions and keep relative output paths.">Source Folder<input name="source_path" value="./examples/text-batch-input"></label>
+            <label title="Folder where translated text files, manifests, optional bundles, and saved logs are written.">Output Folder<input name="output_dir" value="./out/text-batch-output"></label>
+          </div>
+          <div class="row">
+            <label title="Source language for the input. Auto detects each file before translation; fixed values override detection.">Source<select name="source_language" data-language-role="source" data-default="auto"></select></label>
+            <label title="Destination language. The list refreshes from the selected provider and source so unavailable pairs are reduced where a matrix is known.">Target<select name="target_language" data-language-role="target" data-default="en"></select></label>
+            <label title="Translation engine/provider. Auto routes configured local engines; passthrough preserves same-language content; live LLM providers require their own setup.">Provider<select name="provider_id"><option value="deterministic_ci" selected>deterministic_ci</option><option value="auto">auto</option><option value="passthrough">passthrough</option><option value="local_ct2_opus">local_ct2_opus</option><option value="local_ct2_nllb">local_ct2_nllb</option><option value="local_ct2_madlad">local_ct2_madlad</option><option value="local_openai_compat">local_openai_compat</option><option value="openrouter_llm">openrouter_llm</option><option value="google_gemini">google_gemini</option></select></label>
+            <label title="How source files are decoded. Auto checks BOMs, UTF-16 patterns, strict UTF-8, then Windows ANSI/CP1252 fallback.">Input Encoding<select name="input_encoding"><option>auto</option><option>utf-8</option><option>utf-8-sig</option><option>utf-16</option><option>utf-16-le</option><option>utf-16-be</option><option>ansi</option></select></label>
+            <label title="Encoding for translated text outputs. Match-source preserves each file encoding when detected; UTF-8 is the default portable output.">Output Encoding<select name="output_encoding"><option>utf-8</option><option>utf-8-sig</option><option>utf-16</option><option>utf-16-le</option><option>utf-16-be</option><option>match-source</option><option>ansi</option></select></label>
+          </div>
+          <div class="row">
+            <label title="Comma-separated extensions to include, such as .txt,.md. Matching is case-insensitive.">Extensions<input name="file_extensions" value=".txt"></label>
+            <label title="True scans subfolders under the source folder. False processes only files directly inside the source folder.">Recursive<select name="recursive"><option value="true">true</option><option value="false">false</option></select></label>
+            <label title="True writes the translated text plus a per-file TranslationBundle v1 JSON sidecar for custody/review. False writes text outputs, logs, and manifest data but skips per-file bundle sidecars.">Bundles<select name="write_translation_bundles"><option value="true">true</option><option value="false">false</option></select></label>
+            <label title="True keeps processing later files after a per-file error and records failures in the manifest. False stops the batch at the first error.">Continue On Error<select name="continue_on_error"><option value="true">true</option><option value="false">false</option></select></label>
+          </div>
+          <div class="row">
+            <button type="submit">Start</button>
+            <button class="secondary" type="button" data-action="refresh">Refresh</button>
+          </div>
+          <div class="row">
+            <section>
+              <h2>Status</h2>
+              <pre class="feed" id="batchStatus">{}</pre>
+            </section>
+            <section>
+              <h2>Log</h2>
+              <pre class="feed" id="batchLog"></pre>
+            </section>
+          </div>
+          <section>
+            <h2>Output Files</h2>
+            <ul class="file-list" id="batchOutputFiles"></ul>
+          </section>
+          <section class="stack">
+            <h2>Log File</h2>
+            <label title="Path used by Save Log. If blank, the service chooses a default log path in the batch output folder.">Save Path<input name="log_path" value="./out/text-batch-output/translation-batch.log"></label>
+            <div class="row">
+              <button class="secondary" type="button" data-action="full-log">Full Log</button>
+              <button class="secondary" type="button" data-action="save-log">Save Log</button>
+              <button class="secondary" type="button" data-action="download-log">Download Log</button>
+            </div>
+          </section>
+        </form>
+
+        <form class="panel stack" id="submitText">
+          <h2>Submit Text</h2>
+          <label title="Raw text to normalize into a DocumentBundle v1 and submit as a translation job.">Source text<textarea name="text">Hello world.</textarea></label>
+          <div class="row">
+            <label title="Source language for this text. Auto identifies the text before creating the DocumentBundle v1.">Source<select name="source_language" data-language-role="source" data-default="auto"></select></label>
+            <label title="Destination language for this text job. Filtered by provider/source where a matrix is known.">Target<select name="target_language" data-language-role="target" data-default="en"></select></label>
+            <label title="Provider used for this text job. Use passthrough for same-language preservation or auto for configured local routing.">Provider<select name="provider_id"><option value="deterministic_ci" selected>deterministic_ci</option><option value="auto">auto</option><option value="passthrough">passthrough</option><option value="local_ct2_opus">local_ct2_opus</option><option value="local_ct2_nllb">local_ct2_nllb</option><option value="local_ct2_madlad">local_ct2_madlad</option><option value="local_openai_compat">local_openai_compat</option><option value="openrouter_llm">openrouter_llm</option><option value="google_gemini">google_gemini</option></select></label>
+          </div>
+          <label title="Governed instruction set ID applied to eligible LLM/provider workflows. Blank submits without an instruction set override.">Instruction Set<input name="instruction_set_id" value="baseline-legal-neutral"></label>
+          <label title="Comma-separated approved glossary IDs to apply when source/target and tenant policy match.">Glossary IDs<input name="glossary_ids" placeholder="comma separated"></label>
+          <button type="submit">Submit</button>
+        </form>
+
+        <form class="panel stack" id="jobLookup">
+          <h2>Job Lookup</h2>
+          <label title="Translation job ID returned from a bundle, text, or batch submission.">Job ID<input name="job_id" placeholder="trjob_..."></label>
+          <div class="row">
+            <button type="submit">Status</button>
+            <button class="secondary" data-action="bundle" type="button">Bundle</button>
+            <button class="secondary" data-action="evidence" type="button">Evidence</button>
+          </div>
+        </form>
+
+        <form class="panel stack" id="scorePair">
+          <h2>Score Pair</h2>
+          <label title="Original source text used for deterministic local quality scoring.">Source<textarea name="source_text">Hello world.</textarea></label>
+          <label title="Translated text to compare against the source text for local quality scoring.">Translation<textarea name="translated_text">Bonjour le monde.</textarea></label>
+          <div class="row">
+            <label title="Language tag for the source score input. Auto records an auto intent for the scoring payload.">Source<select name="source_language" data-language-role="source" data-default="auto"></select></label>
+            <label title="Language tag for the translated score input. Defaults to English unless changed.">Target<select name="target_language" data-language-role="target" data-default="en"></select></label>
+          </div>
+          <button type="submit">Score</button>
+        </form>
+
+        <form class="panel stack" id="glossary">
+          <h2>Glossary</h2>
+          <label title="Stable glossary identifier referenced by translation jobs and tenant policy.">ID<input name="glossary_id" value="legal-fr"></label>
+          <div class="row">
+            <label title="Source language the glossary entries are written in.">Source<select name="source_language" data-language-role="source" data-default="en"></select></label>
+            <label title="Target language the glossary entries should enforce.">Target<select name="target_language" data-language-role="target" data-default="fr"></select></label>
+          </div>
+          <label title="JSON object mapping source terms to preferred target terms, for example {&quot;contract&quot;:&quot;contrat&quot;}.">Entries JSON<textarea name="entries">{"contract":"contrat"}</textarea></label>
+          <button type="submit">Save</button>
+        </form>
+
+        <form class="panel stack" id="tenantPolicy">
+          <h2>Tenant Policy</h2>
+          <label title="Tenant policy key. The standalone local default is used when no enterprise tenant is configured.">Tenant<input name="tenant_id" value="standalone"></label>
+          <label title="JSON policy patch for provider permissions, glossary permissions, and governance settings.">Update JSON<textarea name="policy">{}</textarea></label>
+          <div class="row">
+            <button type="submit">Update</button>
+            <button class="secondary" data-action="get" type="button">Get</button>
+          </div>
+        </form>
+
+        <form class="panel stack" id="modelValidate">
+          <h2>Model Registry</h2>
+          <label title="Local model bundle directory to validate. Production approval also requires provenance, SBOM, and supply-chain evidence.">Model directory<input name="model_dir" placeholder="./models/opus-en-fr"></label>
+          <label title="Operator/model registry ID to associate with the validated model bundle.">Model ID<input name="model_id" placeholder="opus-en-fr"></label>
+          <div class="row">
+            <button type="submit">Validate</button>
+            <button class="secondary" data-action="list" type="button">Status</button>
+          </div>
+        </form>
+
+        <form class="panel stack" id="liveSmoke">
+          <h2>Live Smoke</h2>
+          <div class="row">
+            <label title="Live provider to smoke test. Calls remain blocked unless EDC_TRANSLATION_LIVE_SMOKE=1 and provider credentials/config are present.">Provider<select name="provider_id"><option>local_openai_compat</option><option>openrouter_llm</option><option>google_gemini</option></select></label>
+            <label title="Source language sent to the live smoke provider. Auto is allowed for provider/model-dependent LLM paths.">Source<select name="source_language" data-language-role="source" data-default="auto"></select></label>
+            <label title="Target language requested from the live smoke provider. Keep this to a tiny test target to limit cost and risk.">Target<select name="target_language" data-language-role="target" data-default="en"></select></label>
+            <label title="Maximum generated tokens for live smoke. The UI caps this at 64 to keep provider calls tiny.">Max Tokens<input name="max_tokens" type="number" min="1" max="64" value="64"></label>
+          </div>
+          <label title="Tiny text used for the live provider smoke. Avoid sensitive or large content in smoke tests.">Text<textarea name="text">Translate this sentence.</textarea></label>
+          <button type="submit">Run</button>
+        </form>
+
+        <form class="panel stack" id="diagnosticTools">
+          <h2>Diagnostics</h2>
+          <label title="Root scanned by env discovery. The current tool only reports top-level env file paths and variable names, never secret values.">Env Root<input name="root" value="."></label>
+          <div class="row">
+            <button type="button" data-action="rank">Rank</button>
+            <button class="secondary" type="button" data-action="env">Env</button>
+          </div>
+        </form>
+
+        <form class="panel stack" id="reviewJob">
+          <h2>Review / Certify</h2>
+          <label title="Translation job ID whose review or certification decision should be recorded.">Job ID<input name="job_id" placeholder="trjob_..."></label>
+          <div class="row">
+            <label title="Review outcome to attach to the job evidence. Certified marks local review completion; needs_review and rejected keep it unresolved.">Decision<select name="decision"><option>certified</option><option>needs_review</option><option>rejected</option></select></label>
+            <label title="Reviewer identifier recorded with the decision for local custody/evidence tracking.">Reviewer<input name="reviewer" value="local-reviewer"></label>
+          </div>
+          <label title="Optional review notes saved with the certification/review decision.">Notes<textarea name="notes"></textarea></label>
+          <button type="submit">Record</button>
+        </form>
+      </section>
+
+      <section class="panel">
+        <h2>Result</h2>
+        <pre id="result">{}</pre>
+      </section>
+    </main>
+
+    <script>
+      const result = document.querySelector("#result");
+      const batchStatus = document.querySelector("#batchStatus");
+      const batchLog = document.querySelector("#batchLog");
+      const batchOutputFiles = document.querySelector("#batchOutputFiles");
+      let activeBatchJobId = null;
+      let batchTimer = null;
+      let languageCatalog = [];
+      let languageByCode = new Map();
+      let providerLanguageMatrices = {};
+      let equivalentLanguageCodes = {};
+      const show = (payload) => {
+        result.textContent = JSON.stringify(payload, null, 2);
+      };
+      const loadLanguages = async () => {
+        const response = await fetch("/api/v1/translation/languages");
+        const payload = await response.json();
+        languageCatalog = payload.languages;
+        languageByCode = new Map(languageCatalog.map((language) => [language.code, language]));
+        providerLanguageMatrices = payload.provider_language_matrices || {};
+        equivalentLanguageCodes = payload.equivalent_codes || {};
+        document.querySelectorAll("form").forEach((form) => {
+          const providerControl = form.querySelector("[name='provider_id']");
+          const sourceSelect = form.querySelector("select[data-language-role='source']");
+          if (providerControl && sourceSelect) {
+            providerControl.addEventListener("change", () => updateLanguageSelects(form));
+            providerControl.addEventListener("input", () => updateLanguageSelects(form));
+          }
+          if (sourceSelect) {
+            sourceSelect.addEventListener("change", () => updateTargetSelect(form));
+          }
+          updateLanguageSelects(form);
+        });
+      };
+      const fillLanguageSelect = (select, languages, preferredValue) => {
+        const currentValue = select.value || preferredValue;
+        select.replaceChildren(...languages.map((language) => {
+          const option = new Option(`${language.name} (${language.code})`, language.code);
+          option.title = language.code_family;
+          return option;
+        }));
+        select.value = languages.some((language) => language.code === currentValue)
+          ? currentValue
+          : preferredValue;
+      };
+      const getProviderMatrix = (form) => {
+        const providerId = form?.querySelector("[name='provider_id']")?.value || "deterministic_ci";
+        return providerLanguageMatrices[providerId]
+          || providerLanguageMatrices.deterministic_ci
+          || {};
+      };
+      const languagesForCodes = (codes) => {
+        const seen = new Set();
+        return (codes || [])
+          .map((code) => languageByCode.get(code))
+          .filter((language) => {
+            if (!language || seen.has(language.code)) {
+              return false;
+            }
+            seen.add(language.code);
+            return true;
+          });
+      };
+      const chooseEquivalentCode = (preferredValue, languages, fallbackValue) => {
+        const candidates = [
+          preferredValue,
+          ...(equivalentLanguageCodes[preferredValue] || []),
+          fallbackValue,
+          ...(equivalentLanguageCodes[fallbackValue] || []),
+        ].filter(Boolean);
+        for (const candidate of candidates) {
+          if (languages.some((language) => language.code === candidate)) {
+            return candidate;
+          }
+        }
+        return languages[0]?.code || "";
+      };
+      const updateLanguageSelects = (form) => {
+        if (!form || !languageCatalog.length) {
+          return;
+        }
+        const sourceSelect = form.querySelector("select[data-language-role='source']");
+        if (!sourceSelect) {
+          return;
+        }
+        const matrix = getProviderMatrix(form);
+        const sourceLanguages = languagesForCodes(matrix.source_codes || languageCatalog.map((language) => language.code));
+        const fallbackSource = matrix.default_source || sourceSelect.dataset.default || "auto";
+        const preferredSource = chooseEquivalentCode(
+          sourceSelect.value || fallbackSource,
+          sourceLanguages,
+          fallbackSource,
+        );
+        fillLanguageSelect(sourceSelect, sourceLanguages, preferredSource);
+        updateTargetSelect(form);
+      };
+      const targetLanguagesBySourceFamily = (sourceCode, candidates) => {
+        const source = languageByCode.get(sourceCode);
+        if (!source || source.code === "auto") {
+          return candidates.filter((language) => language.code_family === "common");
+        }
+        if (source.code_family === "FLORES/NLLB") {
+          return candidates.filter((language) => language.code_family === "FLORES/NLLB");
+        }
+        if (source.code_family === "common") {
+          return candidates.filter((language) => language.code_family === "common");
+        }
+        return candidates;
+      };
+      const targetLanguagesForProviderSource = (form, sourceCode) => {
+        const matrix = getProviderMatrix(form);
+        const candidateTargets = languagesForCodes(matrix.target_codes || []);
+        if (matrix.target_strategy === "same_as_source") {
+          return languagesForCodes([sourceCode]);
+        }
+        if (matrix.pairs) {
+          if (matrix.pairs[sourceCode]) {
+            return languagesForCodes(matrix.pairs[sourceCode]);
+          }
+          for (const equivalent of equivalentLanguageCodes[sourceCode] || []) {
+            if (matrix.pairs[equivalent]) {
+              return languagesForCodes(matrix.pairs[equivalent]);
+            }
+          }
+          return candidateTargets;
+        }
+        if (matrix.filter_strategy === "source_code_family") {
+          return targetLanguagesBySourceFamily(sourceCode, candidateTargets);
+        }
+        return candidateTargets;
+      };
+      const chooseTargetValue = (select, sourceSelect, languages, matrix) => {
+        const defaultTarget = matrix.default_target || select.dataset.default || "en";
+        const alternateTarget = matrix.alternate_target || "fr";
+        if (matrix.target_strategy === "same_as_source") {
+          return chooseEquivalentCode(sourceSelect.value, languages, sourceSelect.value);
+        }
+        if (select.value && languages.some((language) => language.code === select.value)) {
+          return select.value;
+        }
+        const sourceEquivalents = new Set([sourceSelect.value, ...(equivalentLanguageCodes[sourceSelect.value] || [])]);
+        const candidate = chooseEquivalentCode(defaultTarget, languages, select.dataset.default || defaultTarget);
+        if (candidate && !sourceEquivalents.has(candidate)) {
+          return candidate;
+        }
+        return chooseEquivalentCode(alternateTarget, languages, alternateTarget);
+      };
+      const updateTargetSelect = (form) => {
+        if (!form) {
+          return;
+        }
+        const sourceSelect = form.querySelector("select[data-language-role='source']");
+        const targetSelect = form.querySelector("select[data-language-role='target']");
+        if (!sourceSelect || !targetSelect || !languageCatalog.length) {
+          return;
+        }
+        const matrix = getProviderMatrix(form);
+        const targets = targetLanguagesForProviderSource(form, sourceSelect.value);
+        fillLanguageSelect(
+          targetSelect,
+          targets,
+          chooseTargetValue(targetSelect, sourceSelect, targets, matrix),
+        );
+      };
+      const post = async (url, payload) => {
+        const response = await fetch(url, {
+          method: "POST",
+          headers: {"content-type": "application/json"},
+          body: JSON.stringify(payload)
+        });
+        show(await response.json());
+      };
+      const parseBoolean = (value) => value === "true";
+      const parseCsv = (value) => value
+        ? value.split(",").map((item) => item.trim()).filter(Boolean)
+        : [];
+      const escapeHtml = (value) => String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;");
+      const renderBatch = async (jobId) => {
+        const [statusResponse, logsResponse, outputsResponse] = await Promise.all([
+          fetch(`/api/v1/translation/files/batch/${jobId}`),
+          fetch(`/api/v1/translation/files/batch/${jobId}/logs`),
+          fetch(`/api/v1/translation/files/batch/${jobId}/outputs`)
+        ]);
+        const statusPayload = await statusResponse.json();
+        const logsPayload = await logsResponse.json();
+        const outputsPayload = await outputsResponse.json();
+        batchStatus.textContent = JSON.stringify(statusPayload, null, 2);
+        batchLog.textContent = logsPayload.logs
+          .map((entry) => `${entry.timestamp} ${entry.level.toUpperCase()} ${entry.message}${entry.file_path ? " :: " + entry.file_path : ""}${entry.output_path ? " -> " + entry.output_path : ""}`)
+          .join("\n");
+        batchOutputFiles.innerHTML = outputsPayload.files
+          .map((file) => `<li>${escapeHtml(file.status)}: ${escapeHtml(file.output_path || "")}${file.bundle_path ? "<br>" + escapeHtml(file.bundle_path) : ""}</li>`)
+          .join("");
+        show({job: statusPayload.job, outputs: outputsPayload});
+        if (statusPayload.job.terminal && batchTimer) {
+          clearInterval(batchTimer);
+          batchTimer = null;
+        }
+      };
+
+      document.querySelector("#batchFiles").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const data = Object.fromEntries(new FormData(event.currentTarget));
+        data.file_extensions = parseCsv(data.file_extensions);
+        data.recursive = parseBoolean(data.recursive);
+        data.write_translation_bundles = parseBoolean(data.write_translation_bundles);
+        data.continue_on_error = parseBoolean(data.continue_on_error);
+        const response = await fetch("/api/v1/translation/files/batch", {
+          method: "POST",
+          headers: {"content-type": "application/json"},
+          body: JSON.stringify(data)
+        });
+        const payload = await response.json();
+        show(payload);
+        activeBatchJobId = payload.job.job_id;
+        await renderBatch(activeBatchJobId);
+        if (batchTimer) {
+          clearInterval(batchTimer);
+        }
+        batchTimer = setInterval(() => renderBatch(activeBatchJobId), 1000);
+      });
+      document.querySelector("#batchFiles button[data-action='refresh']").addEventListener("click", () => {
+        if (activeBatchJobId) {
+          renderBatch(activeBatchJobId);
+        }
+      });
+      const getBatchLogText = async () => {
+        if (!activeBatchJobId) {
+          show({error: {code: "no_batch_job", message: "Start or refresh a batch job first."}});
+          return "";
+        }
+        const response = await fetch(`/api/v1/translation/files/batch/${activeBatchJobId}/logs/text`);
+        return response.text();
+      };
+      document.querySelector("#batchFiles button[data-action='full-log']").addEventListener("click", async () => {
+        const text = await getBatchLogText();
+        batchLog.textContent = text;
+        show({job_id: activeBatchJobId, log: text});
+      });
+      document.querySelector("#batchFiles button[data-action='save-log']").addEventListener("click", async () => {
+        if (!activeBatchJobId) {
+          show({error: {code: "no_batch_job", message: "Start or refresh a batch job first."}});
+          return;
+        }
+        const form = document.querySelector("#batchFiles");
+        const logPath = new FormData(form).get("log_path");
+        const response = await fetch(`/api/v1/translation/files/batch/${activeBatchJobId}/logs/save`, {
+          method: "POST",
+          headers: {"content-type": "application/json"},
+          body: JSON.stringify({log_path: logPath})
+        });
+        show(await response.json());
+      });
+      document.querySelector("#batchFiles button[data-action='download-log']").addEventListener("click", async () => {
+        const text = await getBatchLogText();
+        if (!text) {
+          return;
+        }
+        const blob = new Blob([text], {type: "text/plain;charset=utf-8"});
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `${activeBatchJobId}.log`;
+        link.click();
+        URL.revokeObjectURL(url);
+      });
+
+      document.querySelector("#submitText").addEventListener("submit", (event) => {
+        event.preventDefault();
+        const data = Object.fromEntries(new FormData(event.currentTarget));
+        if (!data.instruction_set_id) {
+          data.instruction_set_id = null;
+        }
+        data.glossary_ids = data.glossary_ids
+          ? data.glossary_ids.split(",").map((item) => item.trim()).filter(Boolean)
+          : [];
+        post("/api/v1/translation/jobs/text", data);
+      });
+
+      document.querySelector("#jobLookup").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const jobId = new FormData(event.currentTarget).get("job_id");
+        const response = await fetch(`/api/v1/translation/jobs/${jobId}`);
+        show(await response.json());
+      });
+      document.querySelectorAll("#jobLookup button[data-action]").forEach((button) => {
+        button.addEventListener("click", async () => {
+          const form = document.querySelector("#jobLookup");
+          const jobId = new FormData(form).get("job_id");
+          const suffix = button.dataset.action === "bundle" ? "bundle" : "evidence";
+          const response = await fetch(`/api/v1/translation/jobs/${jobId}/${suffix}`);
+          show(await response.json());
+        });
+      });
+
+      document.querySelector("#scorePair").addEventListener("submit", (event) => {
+        event.preventDefault();
+        post("/api/v1/translation/score-pair", Object.fromEntries(new FormData(event.currentTarget)));
+      });
+
+      document.querySelector("#glossary").addEventListener("submit", (event) => {
+        event.preventDefault();
+        const data = Object.fromEntries(new FormData(event.currentTarget));
+        data.entries = JSON.parse(data.entries);
+        data.approved = true;
+        post("/api/v1/translation/glossaries", data);
+      });
+
+      document.querySelector("#tenantPolicy").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const data = Object.fromEntries(new FormData(event.currentTarget));
+        const response = await fetch(`/api/v1/translation/tenant-policy/${data.tenant_id}`, {
+          method: "PUT",
+          headers: {"content-type": "application/json"},
+          body: data.policy
+        });
+        show(await response.json());
+      });
+      document.querySelector("#tenantPolicy button[data-action]").addEventListener("click", async () => {
+        const form = document.querySelector("#tenantPolicy");
+        const tenantId = new FormData(form).get("tenant_id");
+        const response = await fetch(`/api/v1/translation/tenant-policy/${tenantId}`);
+        show(await response.json());
+      });
+
+      document.querySelector("#modelValidate").addEventListener("submit", (event) => {
+        event.preventDefault();
+        const data = Object.fromEntries(new FormData(event.currentTarget));
+        data.enforce_supply_chain = true;
+        post("/api/v1/translation/models/validate", data);
+      });
+      document.querySelector("#modelValidate button[data-action]").addEventListener("click", async () => {
+        const response = await fetch("/api/v1/translation/models");
+        show(await response.json());
+      });
+
+      document.querySelector("#liveSmoke").addEventListener("submit", (event) => {
+        event.preventDefault();
+        const data = Object.fromEntries(new FormData(event.currentTarget));
+        data.max_tokens = Number(data.max_tokens);
+        post("/api/v1/translation/live-smoke", data);
+      });
+
+      document.querySelectorAll("#diagnosticTools button[data-action]").forEach((button) => {
+        button.addEventListener("click", async () => {
+          const form = document.querySelector("#diagnosticTools");
+          const root = new FormData(form).get("root");
+          let url = "/api/v1/translation/local-model-ranking";
+          if (button.dataset.action === "rank") {
+            url = "/api/v1/translation/local-model-ranking";
+          }
+          if (button.dataset.action === "env") {
+            url = `/api/v1/translation/env-discovery?root=${encodeURIComponent(root)}`;
+          }
+          const response = await fetch(url);
+          show(await response.json());
+        });
+      });
+
+      document.querySelector("#reviewJob").addEventListener("submit", (event) => {
+        event.preventDefault();
+        const data = Object.fromEntries(new FormData(event.currentTarget));
+        const jobId = data.job_id;
+        delete data.job_id;
+        post(`/api/v1/translation/jobs/${jobId}/reviews`, data);
+      });
+      loadLanguages();
+    </script>
+  </body>
+</html>

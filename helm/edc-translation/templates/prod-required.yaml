@@ -1,0 +1,14 @@
+{{- if .Values.platform.production }}
+{{- if ne .Values.auth.mode "jwt_ldap" }}{{ fail "production profile requires auth.mode=jwt_ldap until OIDC/JWKS validation is implemented" }}{{- end }}
+{{- if not .Values.auth.existingSecret }}{{ fail "production profile requires auth.existingSecret with JWT/LDAP material" }}{{- end }}
+{{- if not .Values.worker.enabled }}{{ fail "production profile requires worker.enabled=true" }}{{- end }}
+{{- if not .Values.worker.runtimeAdapterVerified }}{{ fail "production profile requires worker.runtimeAdapterVerified=true after a real queue adapter is deployed and tested" }}{{- end }}
+{{- if not .Values.mcp.enabled }}{{ fail "production profile requires mcp.enabled=true" }}{{- end }}
+{{- if not .Values.mcp.runtimeHttpServerVerified }}{{ fail "production profile requires mcp.runtimeHttpServerVerified=true after streamable HTTP MCP is deployed and tested" }}{{- end }}
+{{- if not .Values.networkPolicy.enabled }}{{ fail "production profile requires networkPolicy.enabled=true" }}{{- end }}
+{{- if not .Values.ingress.enabled }}{{ fail "production profile requires ingress.enabled=true" }}{{- end }}
+{{- if not .Values.keda.enabled }}{{ fail "production profile requires keda.enabled=true" }}{{- end }}
+{{- if not .Values.cnpg.enabled }}{{ fail "production profile requires cnpg.enabled=true" }}{{- end }}
+{{- if not .Values.strimzi.enabled }}{{ fail "production profile requires strimzi.enabled=true" }}{{- end }}
+{{- if eq .Values.gpuProfile.selected "local-cpu" }}{{ fail "production profile requires a GPU profile" }}{{- end }}
+{{- end }}

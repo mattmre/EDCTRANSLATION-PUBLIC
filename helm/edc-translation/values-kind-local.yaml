@@ -1,0 +1,140 @@
+# values-kind-local.yaml
+# Values for deploying edc-translation Helm chart to a *local* Kubernetes cluster
+# (Docker Desktop Kubernetes or kind cluster e.g. "edc-k8s-local") with the
+# *real* model server running on the *host machine* at http://host.docker.internal:8081
+# (OpenAI-compatible endpoint, e.g. llama-server, ollama, vLLM, text-generation-webui etc).
+#
+# This makes the worker (and API/MCP) functional against live models without
+# shipping model weights into the cluster or using CT2 local dirs.
+#
+# Prerequisites on host (before helm install):
+#   1. Start your model server on host: e.g.
+#        llama-server -m /path/to/model.gguf --port 8081 --host 0.0.0.0
+#      or `ollama serve` + pull a model, it usually listens on 11434; use a proxy
+#        or set --port 8081.
+#   2. Verify from host: curl http://localhost:8081/v1/models
+#   3. Build/load image: docker build -t edc-translation:local .
+#      - For kind: kind load docker-image edc-translation:local --name edc-k8s-local
+#      - For Docker Desktop K8s: image is automatically visible.
+#   4. (Optional) Determine best hostIP for your setup:
+#      docker network inspect bridge --format '{{ (index .IPAM.Config 0).Gateway }}'
+#      # then override --set hostAccess.hostIP=...
+#
+# Usage:
+#   helm upgrade --install edc-translation-local ./helm/edc-translation \
+#     -f ./helm/edc-translation/values-kind-local.yaml \
+#     --namespace edc-local --create-namespace \
+#     --set localLlm.modelIds="your-model-id-here" \
+#     # --set hostAccess.hostIP=172.17.0.1   # if the default doesn't work
+#
+# Then test from inside cluster:
+#   kubectl -n edc-local run -it --rm debug --image=busybox --restart=Never -- sh -c \
+#     'wget -qO- http://host.docker.internal:8081/v1/models || echo "host.docker.internal failed"; \
+#      wget -qO- http://edc-translation-local-edc-translation-llm:8081/v1/models || echo "svc failed"'
+#
+# The worker uses queueBackend=local so no postgres/kafka needed for basic testing.
+# Jobs submitted via API or mcp will be processed by the worker pod if they specify
+# provider_id: local_openai_compat (or default in some paths).
+#
+# See values-staging.yaml and values-production.yaml for durable platform shapes.
+
+platform:
+  production: false
+  environment: local-kind
+
+replicaCount: 1
+
+image:
+  repository: edc-translation
+  tag: local
+  pullPolicy: Never   # local dev image; change to IfNotPresent if using remote tag
+
+auth:
+  mode: disabled
+
+worker:
+  enabled: false   # local quickstart uses API synchronous path (LocalSynchronousWorkQueue); enable + real queueBackend only when you have postgres/kafka
+  replicaCount: 1
+  runtimeAdapterVerified: true
+  queueBackend: local
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+mcp:
+  enabled: true
+  replicaCount: 1
+  runtimeHttpServerVerified: true
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 300m
+      memory: 256Mi
+
+gpuProfile:
+  selected: local-cpu
+  profiles:
+    local-cpu:
+      ct2Device: cpu
+      maxLoadedModels: 0
+      nodeSelector: {}
+      tolerations: []
+      resources: {}
+
+localLlm:
+  enabled: true
+  baseUrl: "http://host.docker.internal:8081"
+  # Fill with the actual model ID(s) your :8081 server advertises (from /v1/models "id").
+  # Comma separated. Leave empty to let the client auto-discover first model.
+  modelIds: "example-local-model"   # <-- CHANGE ME to match your running model
+
+hostAccess:
+  enabled: true
+  # Default is a common docker bridge gateway. Override on CLI if connectivity
+  # test (see above) fails from a debug pod.
+  # For many WSL2 + Docker Desktop + kind setups this or 192.168.65.2 works.
+  hostIP: "172.17.0.1"
+  hostnames:
+    - "host.docker.internal"
+  workerHostNetwork: false   # set true + change baseUrl to http://127.0.0.1:8081 only if alias fails
+
+modelCache:
+  enabled: false
+
+networkPolicy:
+  enabled: false   # simplest for local host egress; set true + egressAllowAll=true if you prefer
+
+# No durable infra for pure local functional test. Enable durable services in
+# staging or production values.
+cnpg:
+  enabled: false
+strimzi:
+  enabled: false
+keda:
+  enabled: false
+ingress:
+  enabled: false
+
+rbac:
+  create: true
+serviceAccount:
+  create: true
+  automountServiceAccountToken: false
+
+secretManager:
+  enabled: false
+
+# Minimal resources for the API itself
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi

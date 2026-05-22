@@ -1,0 +1,27 @@
+{{- if .Values.localLlm.enabled }}
+# ExternalName Service providing stable cluster-internal DNS for the external
+# model server running on the development host at port 8081.
+# Pods (and the LOCAL_LLM_BASE_URL) can use e.g.
+#   http://{{ include "edc-translation.fullname" . }}-llm:8081
+# instead of (or in addition to) host.docker.internal + hostAliases.
+# The ExternalName causes kube-dns to CNAME to "host.docker.internal", which
+# the node's resolver (in Docker Desktop / kind setups) maps to the host IP
+# that can reach the model server. Complements the hostAliases approach.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "edc-translation.fullname" . }}-llm
+  labels:
+    {{- include "edc-translation.labels" . | nindent 4 }}
+    app.kubernetes.io/component: llm-host
+  annotations:
+    description: "ExternalName for host's local LLM / OpenAI-compat server (host.docker.internal:8081). Enables worker/API/MCP to call real models without embedding host IPs."
+spec:
+  type: ExternalName
+  externalName: host.docker.internal
+  ports:
+    - name: http
+      port: 8081
+      protocol: TCP
+      # ExternalName does not use targetPort or selector; the name is the target.
+{{- end }}

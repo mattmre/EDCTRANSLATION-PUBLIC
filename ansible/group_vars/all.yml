@@ -1,0 +1,151 @@
+---
+# Non-secret defaults only. Override these from an environment-specific inventory
+# or extra-vars file that is not committed to this repository.
+
+edc_namespace: edc-translation
+edc_create_namespace: true
+edc_release_name: edc-translation
+edc_chart_path: "{{ playbook_dir }}/../../helm/edc-translation"
+
+edc_image:
+  repository: edc-translation
+  tag: "0.1.0"
+  pull_policy: IfNotPresent
+
+edc_api:
+  enabled: true
+  replicas: 1
+  service_type: ClusterIP
+  service_port: 8080
+  ingress:
+    enabled: false
+    class_name: nginx
+    host: edc-translation.local
+    tls_secret_name: ""
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+edc_auth:
+  mode: disabled
+  existing_secret: ""
+  jwt_secret_key: jwt-secret
+  ldap_bind_dn_key: ldap-bind-dn
+  ldap_bind_password_key: ldap-bind-password
+
+edc_worker:
+  enabled: false
+  replicas: 0
+  queue_name: translation-jobs
+  queue_backend: local
+  runtime_adapter_verified: false
+  resources: {}
+
+edc_mcp:
+  enabled: false
+  replicas: 0
+  runtime_http_server_verified: false
+  service_type: ClusterIP
+  service_port: 8081
+  resources: {}
+
+edc_queue:
+  provider: in_memory
+  config_map_name: edc-translation-queue
+  kafka:
+    enabled: false
+    bootstrap_servers: ""
+    topic: translation-jobs
+    consumer_group: edc-translation-workers
+    existing_secret_name: ""
+    username_key: username
+    password_key: password
+
+edc_network_policy:
+  enabled: false
+
+edc_keda:
+  enabled: false
+  polling_interval: 30
+  cooldown_period: 300
+  min_replicas: 1
+  max_replicas: 4
+  kafka:
+    lag_threshold: "10"
+  postgres:
+    enabled: false
+
+edc_model_cache:
+  enabled: false
+  pvc_name: edc-translation-model-cache
+  storage_class_name: ""
+  access_modes:
+    - ReadWriteOnce
+  size: 50Gi
+  mount_path: /models
+  opus_path: /models/opus-mt
+  nllb_path: /models/nllb
+  madlad_path: /models/madlad
+
+edc_gpu:
+  profile: local-cpu
+  profiles:
+    local-cpu:
+      ct2_device: cpu
+      max_loaded_models: 0
+      node_selector: {}
+      tolerations: []
+      resources: {}
+    gpu-1x16:
+      ct2_device: cuda
+      max_loaded_models: 1
+      node_selector: {}
+      tolerations: []
+      resources:
+        limits:
+          nvidia.com/gpu: 1
+    gpu-1x24:
+      ct2_device: cuda
+      max_loaded_models: 3
+      node_selector: {}
+      tolerations: []
+      resources:
+        limits:
+          nvidia.com/gpu: 1
+
+edc_strimzi:
+  enabled: false
+  cluster_name: ""
+  version: 4.2.0
+  kafka_namespace: "{{ edc_namespace }}"
+  topic_name: "{{ edc_queue.kafka.topic }}"
+  partitions: 3
+  replicas: 3
+  min_insync_replicas: 2
+  storage_size: 100Gi
+  zookeeper_replicas: 3
+  zookeeper_storage_size: 20Gi
+
+edc_postgres:
+  enabled: false
+  cnpg_enabled: false
+  cluster_name: edc-translation-postgres
+  instances: 3
+  storage_size: 50Gi
+  existing_secret_name: ""
+  host_key: host
+  port_key: port
+  database_key: database
+  username_key: username
+  password_key: password
+
+edc_smoke:
+  auto_route:
+    enabled: false
+    source: en
+    target: fr
+    allow_nc_licensed: false

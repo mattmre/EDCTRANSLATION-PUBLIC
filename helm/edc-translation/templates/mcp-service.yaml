@@ -1,0 +1,16 @@
+{{- if .Values.mcp.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "edc-translation.fullname" . }}-mcp
+  labels:
+    {{- include "edc-translation.componentLabels" (dict "root" . "component" "mcp") | nindent 4 }}
+spec:
+  type: {{ .Values.mcp.service.type }}
+  selector:
+    {{- include "edc-translation.componentSelectorLabels" (dict "root" . "component" "mcp") | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.mcp.service.port }}
+      targetPort: http
+{{- end }}
